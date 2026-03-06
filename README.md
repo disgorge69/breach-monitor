@@ -1,4 +1,4 @@
-# Breach Monitor v2
+# Breach Monitor
 
 A full-stack breach monitoring application with a terminal-themed UI. Tracks data breaches and displays them in real-time.
 
@@ -7,6 +7,8 @@ A full-stack breach monitoring application with a terminal-themed UI. Tracks dat
 - **Backend**: Express.js, PostgreSQL, Drizzle ORM
 - **Frontend**: React, TanStack Query, Tailwind CSS
 - **Database**: PostgreSQL with Drizzle ORM
+
+![screenshot](https://github.com/disgorge69/breach-monitor/blob/main/screenshot_Breach-Monitor.png)
 
 ## Prerequisites
 
