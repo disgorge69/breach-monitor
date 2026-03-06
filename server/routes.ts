@@ -1,19 +1,32 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { api, errorSchemas } from "@shared/routes";
+import { api } from "@shared/routes";
 import { z } from "zod";
+
+const externalBreachSchema = z.object({
+  Title: z.string(),
+  Domain: z.string(),
+  BreachDate: z.string(),
+  Description: z.string(),
+  PwnCount: z.number(),
+});
+
+type ExternalBreach = z.infer<typeof externalBreachSchema>;
 
 async function fetchExternalBreaches() {
   try {
     const response = await fetch("https://haveibeenpwned.com/api/v3/breaches");
     if (!response.ok) return [];
-    const data = await response.json();
-    return data.slice(0, 10).map((b: any) => ({
+    const data: unknown = await response.json();
+    const parsed = z.array(externalBreachSchema).safeParse(data);
+    if (!parsed.success) return [];
+    
+    return parsed.data.slice(0, 10).map((b: ExternalBreach) => ({
       name: b.Title,
       domain: b.Domain,
       breachDate: new Date(b.BreachDate),
-      description: b.Description.replace(/<[^>]*>?/gm, ''), // Strip HTML
+      description: b.Description.replace(/<[^>]*>?/gm, ''),
       recordCount: b.PwnCount,
       severity: b.PwnCount > 1000000 ? "critical" : b.PwnCount > 100000 ? "high" : "medium"
     }));
@@ -23,9 +36,20 @@ async function fetchExternalBreaches() {
   }
 }
 
+let dbSeeded = false;
+let seedPromise: Promise<void> | null = null;
+
 async function seedDatabase() {
-  const existingBreaches = await storage.getBreaches();
-  if (existingBreaches.length === 0) {
+  if (dbSeeded) return;
+  if (seedPromise) return seedPromise;
+
+  seedPromise = (async () => {
+    const existingBreaches = await storage.getBreaches();
+    if (existingBreaches.length > 0) {
+      dbSeeded = true;
+      return;
+    }
+
     const externalBreaches = await fetchExternalBreaches();
     const seedData = externalBreaches.length > 0 ? externalBreaches : [
       {
@@ -49,7 +73,10 @@ async function seedDatabase() {
     for (const data of seedData) {
       await storage.createBreach(data);
     }
-  }
+    dbSeeded = true;
+  })();
+
+  return seedPromise;
 }
 
 export async function registerRoutes(
@@ -87,8 +114,14 @@ export async function registerRoutes(
 
   app.post(api.breaches.create.path, async (req, res) => {
     try {
+      const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+      
       const input = api.breaches.create.input.extend({
-        breachDate: z.coerce.date()
+        breachDate: z.coerce.date(),
+        domain: z.string().min(1).refine(
+          (val) => domainRegex.test(val),
+          { message: "Invalid domain format" }
+        )
       }).parse(req.body);
       const newBreach = await storage.createBreach(input);
       res.status(201).json(newBreach);

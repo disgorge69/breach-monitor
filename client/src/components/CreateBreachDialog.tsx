@@ -38,13 +38,12 @@ export function CreateBreachDialog() {
   });
 
   const onSubmit = (data: FormData) => {
-    // Coerce the date string to a proper ISO timestamp for the API
     const payload = {
       ...data,
-      breachDate: new Date(data.breachDate).toISOString(),
+      breachDate: data.breachDate,
     };
 
-    createBreach(payload, {
+    createBreach(payload as never, {
       onSuccess: () => {
         reset();
         setIsOpen(false);

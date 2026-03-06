@@ -10,7 +10,7 @@ export const breaches = pgTable("breaches", {
   addedDate: timestamp("added_date").defaultNow().notNull(),
   description: text("description").notNull(),
   recordCount: integer("record_count").notNull(),
-  severity: varchar("severity", { length: 50 }).notNull(), // e.g. "high", "medium", "low", "critical"
+  severity: varchar("severity", { length: 50 }).notNull(),
 });
 
 export const insertBreachSchema = createInsertSchema(breaches).omit({ 
