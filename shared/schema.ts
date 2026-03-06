@@ -1,18 +1,25 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+export const breaches = pgTable("breaches", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  domain: varchar("domain", { length: 255 }).notNull(),
+  breachDate: timestamp("breach_date").notNull(),
+  addedDate: timestamp("added_date").defaultNow().notNull(),
+  description: text("description").notNull(),
+  recordCount: integer("record_count").notNull(),
+  severity: varchar("severity", { length: 50 }).notNull(), // e.g. "high", "medium", "low", "critical"
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertBreachSchema = createInsertSchema(breaches).omit({ 
+  id: true, 
+  addedDate: true 
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type InsertBreach = z.infer<typeof insertBreachSchema>;
+export type Breach = typeof breaches.$inferSelect;
+
+export type BreachResponse = Breach;
+export type BreachesListResponse = Breach[];
