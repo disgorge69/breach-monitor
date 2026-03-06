@@ -4,10 +4,30 @@ import { storage } from "./storage";
 import { api, errorSchemas } from "@shared/routes";
 import { z } from "zod";
 
+async function fetchExternalBreaches() {
+  try {
+    const response = await fetch("https://haveibeenpwned.com/api/v3/breaches");
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.slice(0, 10).map((b: any) => ({
+      name: b.Title,
+      domain: b.Domain,
+      breachDate: new Date(b.BreachDate),
+      description: b.Description.replace(/<[^>]*>?/gm, ''), // Strip HTML
+      recordCount: b.PwnCount,
+      severity: b.PwnCount > 1000000 ? "critical" : b.PwnCount > 100000 ? "high" : "medium"
+    }));
+  } catch (err) {
+    console.error("Failed to fetch external breaches:", err);
+    return [];
+  }
+}
+
 async function seedDatabase() {
   const existingBreaches = await storage.getBreaches();
   if (existingBreaches.length === 0) {
-    const seedData = [
+    const externalBreaches = await fetchExternalBreaches();
+    const seedData = externalBreaches.length > 0 ? externalBreaches : [
       {
         name: "TechNova Solutions",
         domain: "technova.example.com",
@@ -22,30 +42,6 @@ async function seedDatabase() {
         breachDate: new Date("2024-01-22T00:00:00Z"),
         description: "Ransomware group exploited a zero-day vulnerability in VPN concentrators.",
         recordCount: 2300000,
-        severity: "critical"
-      },
-      {
-        name: "CloudStorage Pro",
-        domain: "cloudstorage.example.org",
-        breachDate: new Date("2023-08-05T00:00:00Z"),
-        description: "Database dump found on dark web forums. Passwords were hashed using weak algorithms.",
-        recordCount: 890000,
-        severity: "high"
-      },
-      {
-        name: "Local Library System",
-        domain: "library.local",
-        breachDate: new Date("2024-02-10T00:00:00Z"),
-        description: "Phishing attack led to unauthorized access of user borrowing histories.",
-        recordCount: 12000,
-        severity: "low"
-      },
-      {
-        name: "HealthCare Plus",
-        domain: "healthplus.example.com",
-        breachDate: new Date("2024-03-01T00:00:00Z"),
-        description: "Third-party vendor compromise led to exposure of patient medical records.",
-        recordCount: 450000,
         severity: "critical"
       }
     ];
